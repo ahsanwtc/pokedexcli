@@ -24,6 +24,22 @@ func main()  {
 		callback:    commandExit,
 	}
 
+	commands["help"] = CliCommand{
+	name:        "help",
+	description: "Displays a help message",
+	callback: func() error {
+		fmt.Println("Welcome to the Pokedex!")
+		fmt.Println("Usage:")
+		fmt.Println("")
+		fmt.Println("")
+		for key, command := range commands {
+			fmt.Printf("%s: %s\n", key, command.description)
+		}
+
+		return nil
+	},
+}
+
 	for {
 		fmt.Print("Pokedex > ")
 		if scanner.Scan() {
