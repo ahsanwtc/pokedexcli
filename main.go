@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/ahsanwtc/pokedexcli/internal/pokeapi"
 )
 
 type CliCommand struct {
 	name        string
 	description string
-	callback    func() error
+	callback    func(client *pokeapi.Client) error
 }
 
 
@@ -25,20 +27,34 @@ func main()  {
 	}
 
 	commands["help"] = CliCommand{
-	name:        "help",
-	description: "Displays a help message",
-	callback: func() error {
-		fmt.Println("Welcome to the Pokedex!")
-		fmt.Println("Usage:")
-		fmt.Println("")
-		fmt.Println("")
-		for key, command := range commands {
-			fmt.Printf("%s: %s\n", key, command.description)
-		}
+		name:        "help",
+		description: "Displays a help message",
+		callback: func(client *pokeapi.Client) error {
+			fmt.Println("Welcome to the Pokedex!")
+			fmt.Println("Usage:")
+			fmt.Println("")
+			fmt.Println("")
+			for key, command := range commands {
+				fmt.Printf("%s: %s\n", key, command.description)
+			}
 
-		return nil
-	},
-}
+			return nil
+		},
+	}
+
+	commands["map"] = CliCommand{
+		name:        "map",
+		description: "Fetches the next 20 locations of possible Pokémon encounters.",
+		callback:    commandMap,
+	}
+
+	commands["mapb"] = CliCommand{
+		name:        "mapb",
+		description: "Fetches the previous 20 locations of possible Pokémon encounters.",
+		callback:    commandMapB,
+	}
+
+	client := pokeapi.NewClient("https://pokeapi.co/api/v2/")
 
 	for {
 		fmt.Print("Pokedex > ")
@@ -46,7 +62,7 @@ func main()  {
 			input := scanner.Text()
 			cleaned := cleanInput(input)
 			if command, ok := commands[cleaned[0]]; ok {
-				command.callback()
+				command.callback(client)
 			} else {
 				fmt.Println("Unknown command")
 			}
@@ -65,8 +81,37 @@ func cleanInput(text string) []string {
 	return strings.Fields(trimmed)
 }
 
-func commandExit() error {
+func commandExit(client *pokeapi.Client) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
+	return nil
+}
+
+func commandMap(client *pokeapi.Client) error {
+	locationAreas, err := client.GetLocationAreas(pokeapi.Next)
+	if err != nil {
+		return  err
+	}
+
+	for _, result := range locationAreas.Results {
+		fmt.Println(result.Name)
+	}
+
+	return nil
+}
+
+func commandMapB(client *pokeapi.Client) error {	
+	locationAreas, err := client.GetLocationAreas(pokeapi.Previous)
+	if err != nil {
+		if err.Error() == "EMPTY_PREV" {
+			fmt.Println("you're on the first page")
+		}
+		return  err
+	}
+
+	for _, result := range locationAreas.Results {
+		fmt.Println(result.Name)
+	}
+
 	return nil
 }
