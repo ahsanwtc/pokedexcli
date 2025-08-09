@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -40,7 +39,6 @@ func (c* SimpleCache) reapLoop() {
 		c.mu.Lock()
 		for key, value := range c.store {
 			if time.Since(value.createdAt) > c.interval {
-				fmt.Printf("%s is elapsed, deleting", key)
 				delete(c.store, key)			
 			}
 		}

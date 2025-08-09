@@ -14,9 +14,10 @@ import (
 type CliCommand struct {
 	name        string
 	description string
-	callback    func(client *pokeapi.Client) error
+	callback    func(client *pokeapi.Client, parameters []string) error
 }
 
+const CACHE_TTL = 20 * time.Minute
 
 func main()  {
 	scanner := bufio.NewScanner(os.Stdin)
@@ -31,7 +32,7 @@ func main()  {
 	commands["help"] = CliCommand{
 		name:        "help",
 		description: "Displays a help message",
-		callback: func(client *pokeapi.Client) error {
+		callback: func(client *pokeapi.Client, parameters []string) error {
 			fmt.Println("Welcome to the Pokedex!")
 			fmt.Println("Usage:")
 			fmt.Println("")
@@ -56,7 +57,13 @@ func main()  {
 		callback:    commandMapB,
 	}
 
-	client := pokeapi.NewClient("https://pokeapi.co/api/v2/", cache.NewCache(5 * time.Second))
+	commands["explore"] = CliCommand{
+		name:        "explore",
+		description: "Fetches a list of all the Pokémon located at a location. explore <area_name>",
+		callback:    commandExplore,
+	}
+
+	client := pokeapi.NewClient("https://pokeapi.co/api/v2/", cache.NewCache(CACHE_TTL))
 
 	for {
 		fmt.Print("Pokedex > ")
@@ -66,10 +73,10 @@ func main()  {
 				fmt.Println("Provide a command, or use `help` for information!")
 				continue
 			}
-			
+
 			cleaned := cleanInput(input)
 			if command, ok := commands[cleaned[0]]; ok {
-				command.callback(client)
+				command.callback(client, cleaned[1:])
 			} else {
 				fmt.Println("Unknown command")
 			}
@@ -88,13 +95,13 @@ func cleanInput(text string) []string {
 	return strings.Fields(trimmed)
 }
 
-func commandExit(client *pokeapi.Client) error {
+func commandExit(client *pokeapi.Client, parameters []string) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandMap(client *pokeapi.Client) error {
+func commandMap(client *pokeapi.Client, parameters []string) error {
 	locationAreas, err := client.GetLocationAreas(pokeapi.Next)
 	if err != nil {
 		return  err
@@ -107,7 +114,7 @@ func commandMap(client *pokeapi.Client) error {
 	return nil
 }
 
-func commandMapB(client *pokeapi.Client) error {	
+func commandMapB(client *pokeapi.Client, parameters []string) error {	
 	locationAreas, err := client.GetLocationAreas(pokeapi.Previous)
 	if err != nil {
 		if err.Error() == "EMPTY_PREV" {
@@ -118,6 +125,28 @@ func commandMapB(client *pokeapi.Client) error {
 
 	for _, result := range locationAreas.Results {
 		fmt.Println(result.Name)
+	}
+
+	return nil
+}
+
+func commandExplore(client *pokeapi.Client, parameters []string) error {
+	if len(parameters) == 0 || len(parameters) > 1 {
+		return fmt.Errorf("invalid parameter length to search")
+	}
+
+	fmt.Printf("Exploring %s...\n", parameters[0])
+	locationArea, err := client.GetLocationArea(parameters[0])
+	if err != nil {
+		if err.Error() == "EMPTY_PREV" {
+			fmt.Println("you're on the first page")
+		}
+		return  err
+	}
+
+	fmt.Println("Found Pokemon:")
+	for _, encounter := range locationArea.PokemonEncounters {
+		fmt.Println(" - ", encounter.Pokemon.Name)
 	}
 
 	return nil

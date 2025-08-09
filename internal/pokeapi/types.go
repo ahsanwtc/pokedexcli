@@ -32,3 +32,13 @@ const (
 	Next Page = "next"
 	Previous Page = "previous"
 )
+
+type LocationArea struct {
+	Name string `json:"name"`
+	PokemonEncounters []struct {
+		Pokemon struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"pokemon"`
+	} `json:"pokemon_encounters"`
+}
