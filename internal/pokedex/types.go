@@ -11,4 +11,5 @@ type Pokedex struct {
 type Dex interface {
 	Add(pokemon pokeapi.Pokemon)
 	List()
+	Inspect(pokemonName string) *pokeapi.Pokemon
 }

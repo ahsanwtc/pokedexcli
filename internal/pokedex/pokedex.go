@@ -24,3 +24,12 @@ func (p* Pokedex) List()  {
 		fmt.Println(" - ", pokemon.Name)
 	}
 }
+
+func (p* Pokedex) Inspect(pokemonName string) *pokeapi.Pokemon {
+	pokemon, ok := p.dex[pokemonName]
+	if !ok {
+		return nil
+	}
+
+	return &pokemon
+}

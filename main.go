@@ -82,6 +82,12 @@ func main()  {
 		callback:    commandList,
 	}
 
+	commands["inspect"] = CliCommand{
+		name:        "inspect",
+		description: "Inspect a captured Pokemon. inspect <pokemon_name>",
+		callback:    commandInspect,
+	}
+
 	commandEnv := &CommandEnv{
 		client: pokeapi.NewClient("https://pokeapi.co/api/v2/", cache.NewCache(CACHE_TTL)),
 		pokedex: pokedex.NewDex(),
@@ -98,7 +104,10 @@ func main()  {
 
 			cleaned := cleanInput(input)
 			if command, ok := commands[cleaned[0]]; ok {
-				command.callback(commandEnv, cleaned[1:])
+				err := command.callback(commandEnv, cleaned[1:])
+				if err != nil {
+					fmt.Println(err)
+				}
 			} else {
 				fmt.Println("Unknown command")
 			}
@@ -125,7 +134,7 @@ func commandExit(env *CommandEnv, parameters []string) error {
 
 func commandMap(env *CommandEnv, parameters []string) error {
 	if env.client == nil {
-		return fmt.Errorf("pokeapi client is not configure")
+		return fmt.Errorf("pokeapi client is not configured")
 	}
 
 	locationAreas, err := env.client.GetLocationAreas(pokeapi.Next)
@@ -142,7 +151,7 @@ func commandMap(env *CommandEnv, parameters []string) error {
 
 func commandMapB(env *CommandEnv, parameters []string) error {
 	if env.client == nil {
-		return fmt.Errorf("pokeapi client is not configure")
+		return fmt.Errorf("pokeapi client is not configured")
 	}
 
 	locationAreas, err := env.client.GetLocationAreas(pokeapi.Previous)
@@ -162,7 +171,7 @@ func commandMapB(env *CommandEnv, parameters []string) error {
 
 func commandExplore(env *CommandEnv, parameters []string) error {
 	if env.client == nil {
-		return fmt.Errorf("pokeapi client is not configure")
+		return fmt.Errorf("pokeapi client is not configured")
 	}
 
 	if len(parameters) == 0 || len(parameters) > 1 {
@@ -185,11 +194,11 @@ func commandExplore(env *CommandEnv, parameters []string) error {
 
 func commandCatch(env *CommandEnv, parameters []string) error {
 	if env.client == nil {
-		return fmt.Errorf("pokeapi client is not configure")
+		return fmt.Errorf("pokeapi client is not configured")
 	}
 
 	if env.pokedex == nil {
-		return fmt.Errorf("pokedex is not configure")
+		return fmt.Errorf("pokedex is not configured")
 	}
 
 	if len(parameters) == 0 || len(parameters) > 1 {
@@ -216,10 +225,40 @@ func commandCatch(env *CommandEnv, parameters []string) error {
 
 func commandList(env *CommandEnv, parameters []string) error {
 	if env.pokedex == nil {
-		return fmt.Errorf("pokedex is not configure")
+		return fmt.Errorf("pokedex is not configured")
 	}
 
 	env.pokedex.List()
+
+	return nil
+}
+
+func commandInspect(env *CommandEnv, parameters []string) error {
+	if env.pokedex == nil {
+		return fmt.Errorf("pokedex is not configured")
+	}
+
+	if len(parameters) == 0 || len(parameters) > 1 {
+		return fmt.Errorf("invalid parameter length to inspect a pokemon")
+	}
+
+	pokemonName := parameters[0]
+	pokemon := env.pokedex.Inspect(pokemonName)
+	if pokemon == nil {
+		return fmt.Errorf("%s has not been captured yet", pokemonName)
+	}
+
+	fmt.Println("Name: ", pokemon.Name)
+	fmt.Println("Height: ", pokemon.Height)
+	fmt.Println("Weight: ", pokemon.Weight)
+	fmt.Println("Stats:")
+	for _, stat := range pokemon.Stats {
+		fmt.Printf(" -%s: %v\n", stat.Stat.Name, stat.BaseStat)
+	}
+	fmt.Println("Types:")
+	for _, _type := range pokemon.Types {
+		fmt.Println(" -", _type.Type.Name)
+	}
 
 	return nil
 }
