@@ -7,14 +7,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ahsanwtc/pokedexcli/internal/battle"
 	"github.com/ahsanwtc/pokedexcli/internal/cache"
 	"github.com/ahsanwtc/pokedexcli/internal/pokeapi"
+	"github.com/ahsanwtc/pokedexcli/internal/pokedex"
 )
+
+type CommandEnv struct {
+	client *pokeapi.Client
+	pokedex pokedex.Dex
+}
 
 type CliCommand struct {
 	name        string
 	description string
-	callback    func(client *pokeapi.Client, parameters []string) error
+	callback    func(env *CommandEnv, parameters []string) error
 }
 
 const CACHE_TTL = 20 * time.Minute
@@ -32,7 +39,7 @@ func main()  {
 	commands["help"] = CliCommand{
 		name:        "help",
 		description: "Displays a help message",
-		callback: func(client *pokeapi.Client, parameters []string) error {
+		callback: func(env *CommandEnv, parameters []string) error {
 			fmt.Println("Welcome to the Pokedex!")
 			fmt.Println("Usage:")
 			fmt.Println("")
@@ -63,7 +70,22 @@ func main()  {
 		callback:    commandExplore,
 	}
 
-	client := pokeapi.NewClient("https://pokeapi.co/api/v2/", cache.NewCache(CACHE_TTL))
+	commands["catch"] = CliCommand{
+		name:        "catch",
+		description: "Try to catch a pokemon. catch <pokemon_name>",
+		callback:    commandCatch,
+	}
+
+	commands["list"] = CliCommand{
+		name:        "list",
+		description: "Show a list of all the caught Pokemons",
+		callback:    commandList,
+	}
+
+	commandEnv := &CommandEnv{
+		client: pokeapi.NewClient("https://pokeapi.co/api/v2/", cache.NewCache(CACHE_TTL)),
+		pokedex: pokedex.NewDex(),
+	}
 
 	for {
 		fmt.Print("Pokedex > ")
@@ -76,7 +98,7 @@ func main()  {
 
 			cleaned := cleanInput(input)
 			if command, ok := commands[cleaned[0]]; ok {
-				command.callback(client, cleaned[1:])
+				command.callback(commandEnv, cleaned[1:])
 			} else {
 				fmt.Println("Unknown command")
 			}
@@ -95,14 +117,18 @@ func cleanInput(text string) []string {
 	return strings.Fields(trimmed)
 }
 
-func commandExit(client *pokeapi.Client, parameters []string) error {
+func commandExit(env *CommandEnv, parameters []string) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandMap(client *pokeapi.Client, parameters []string) error {
-	locationAreas, err := client.GetLocationAreas(pokeapi.Next)
+func commandMap(env *CommandEnv, parameters []string) error {
+	if env.client == nil {
+		return fmt.Errorf("pokeapi client is not configure")
+	}
+
+	locationAreas, err := env.client.GetLocationAreas(pokeapi.Next)
 	if err != nil {
 		return  err
 	}
@@ -114,8 +140,12 @@ func commandMap(client *pokeapi.Client, parameters []string) error {
 	return nil
 }
 
-func commandMapB(client *pokeapi.Client, parameters []string) error {	
-	locationAreas, err := client.GetLocationAreas(pokeapi.Previous)
+func commandMapB(env *CommandEnv, parameters []string) error {
+	if env.client == nil {
+		return fmt.Errorf("pokeapi client is not configure")
+	}
+
+	locationAreas, err := env.client.GetLocationAreas(pokeapi.Previous)
 	if err != nil {
 		if err.Error() == "EMPTY_PREV" {
 			fmt.Println("you're on the first page")
@@ -130,17 +160,18 @@ func commandMapB(client *pokeapi.Client, parameters []string) error {
 	return nil
 }
 
-func commandExplore(client *pokeapi.Client, parameters []string) error {
+func commandExplore(env *CommandEnv, parameters []string) error {
+	if env.client == nil {
+		return fmt.Errorf("pokeapi client is not configure")
+	}
+
 	if len(parameters) == 0 || len(parameters) > 1 {
 		return fmt.Errorf("invalid parameter length to search")
 	}
 
 	fmt.Printf("Exploring %s...\n", parameters[0])
-	locationArea, err := client.GetLocationArea(parameters[0])
+	locationArea, err := env.client.GetLocationArea(parameters[0])
 	if err != nil {
-		if err.Error() == "EMPTY_PREV" {
-			fmt.Println("you're on the first page")
-		}
 		return  err
 	}
 
@@ -148,6 +179,47 @@ func commandExplore(client *pokeapi.Client, parameters []string) error {
 	for _, encounter := range locationArea.PokemonEncounters {
 		fmt.Println(" - ", encounter.Pokemon.Name)
 	}
+
+	return nil
+}
+
+func commandCatch(env *CommandEnv, parameters []string) error {
+	if env.client == nil {
+		return fmt.Errorf("pokeapi client is not configure")
+	}
+
+	if env.pokedex == nil {
+		return fmt.Errorf("pokedex is not configure")
+	}
+
+	if len(parameters) == 0 || len(parameters) > 1 {
+		return fmt.Errorf("invalid parameter length to catch a pokemon")
+	}
+
+	pokemonName := parameters[0]
+	pokemon, err := env.client.GetPokemon(pokemonName)
+	if err != nil {
+		return  err
+	}
+
+	fmt.Printf("Throwing a Pokeball at %s...\n", pokemonName)
+	captured := battle.Attack(*pokemon)
+	if captured {
+		env.pokedex.Add(*pokemon)
+		fmt.Printf("%s was caught!\n", pokemon.Name)
+	} else {
+		fmt.Printf("%s escaped\n", pokemon.Name)
+	}
+
+	return nil
+}
+
+func commandList(env *CommandEnv, parameters []string) error {
+	if env.pokedex == nil {
+		return fmt.Errorf("pokedex is not configure")
+	}
+
+	env.pokedex.List()
 
 	return nil
 }

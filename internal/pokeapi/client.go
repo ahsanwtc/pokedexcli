@@ -121,6 +121,46 @@ func (c *Client) GetLocationArea(locationAreaName string) (*LocationArea, error)
 	return  &locationArea, nil
 }
 
+func (c *Client) GetPokemon(pokemonName string) (*Pokemon, error)  {
+	resourcePath := path.Join("pokemon", pokemonName)
+	url := c.url.ResolveReference(&url.URL{Path: resourcePath}).String()
+
+	data, ok := c.cache.Get(url)
+	var pokemon Pokemon
+	
+	if ok {
+		err := toPokemon(data, &pokemon)
+		if err != nil {
+			return nil, err
+		}
+		return &pokemon, nil
+	}
+
+	res, err := c.doRequest("GET", url)
+	if err != nil {
+		return  nil, err
+	}
+	defer res.Body.Close()
+	
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed with status code: %d", res.StatusCode)
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return  nil, err
+	}
+
+	c.cache.Set(url, body)
+
+	err = json.Unmarshal(body, &pokemon)
+	if err != nil {
+		return  nil, err
+	}
+
+	return  &pokemon, nil
+}
+
 func toLocationAreas(data []byte, locationAreas *LocationAreas) error {
 	err := json.Unmarshal(data, locationAreas)
 	if err != nil {
@@ -131,6 +171,14 @@ func toLocationAreas(data []byte, locationAreas *LocationAreas) error {
 
 func toLocationArea(data []byte, locationArea *LocationArea) error {
 	err := json.Unmarshal(data, locationArea)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func toPokemon(data []byte, pokemon *Pokemon) error {
+	err := json.Unmarshal(data, pokemon)
 	if err != nil {
 		return err
 	}
