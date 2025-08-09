@@ -62,6 +62,11 @@ func main()  {
 		fmt.Print("Pokedex > ")
 		if scanner.Scan() {
 			input := scanner.Text()
+			if input == "" {
+				fmt.Println("Provide a command, or use `help` for information!")
+				continue
+			}
+			
 			cleaned := cleanInput(input)
 			if command, ok := commands[cleaned[0]]; ok {
 				command.callback(client)
