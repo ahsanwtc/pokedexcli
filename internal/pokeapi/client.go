@@ -7,9 +7,11 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+
+	"github.com/ahsanwtc/pokedexcli/internal/cache"
 )
 
-func NewClient(baseURL string) *Client {
+func NewClient(baseURL string, cache cache.Cache) *Client {
 	parsedURL, err := url.Parse(baseURL)
 	if err != nil {
 		log.Fatal(err)
@@ -19,6 +21,7 @@ func NewClient(baseURL string) *Client {
 		url: parsedURL,
 		httpClient: &http.Client{},
 		Config: &Config{},
+		cache: cache,
 	}
 }
 
@@ -36,6 +39,19 @@ func (c *Client) GetLocationAreas(page Page) (*LocationAreas, error)  {
 		url = c.Config.Previous
 	}
 
+	data, ok := c.cache.Get(url)
+	var locationAreas LocationAreas
+	
+	if ok {
+		err := toLocationAreas(data, &locationAreas)
+		if err != nil {
+			return nil, err
+		}
+		return &locationAreas, nil
+	}
+
+	fmt.Println("cache miss", url)
+
 	res, err := c.httpClient.Get(url)
 	if err != nil {
 		return  nil, err
@@ -51,7 +67,8 @@ func (c *Client) GetLocationAreas(page Page) (*LocationAreas, error)  {
 		return  nil, err
 	}
 
-	var locationAreas LocationAreas
+	c.cache.Set(url, body)
+
 	err = json.Unmarshal(body, &locationAreas)
 	if err != nil {
 		return  nil, err
@@ -61,4 +78,12 @@ func (c *Client) GetLocationAreas(page Page) (*LocationAreas, error)  {
 	c.Config.Previous = locationAreas.Previous
 
 	return  &locationAreas, nil
+}
+
+func toLocationAreas(data []byte, locationAreas *LocationAreas) error {
+	err := json.Unmarshal(data, locationAreas)
+	if err != nil {
+		return err
+	}
+	return nil
 }

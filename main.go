@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/ahsanwtc/pokedexcli/internal/cache"
 	"github.com/ahsanwtc/pokedexcli/internal/pokeapi"
 )
 
@@ -54,7 +56,7 @@ func main()  {
 		callback:    commandMapB,
 	}
 
-	client := pokeapi.NewClient("https://pokeapi.co/api/v2/")
+	client := pokeapi.NewClient("https://pokeapi.co/api/v2/", cache.NewCache(5 * time.Second))
 
 	for {
 		fmt.Print("Pokedex > ")

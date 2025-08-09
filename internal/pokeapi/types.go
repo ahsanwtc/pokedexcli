@@ -3,6 +3,8 @@ package pokeapi
 import (
 	"net/http"
 	"net/url"
+
+	"github.com/ahsanwtc/pokedexcli/internal/cache"
 )
 
 type Config struct {
@@ -14,6 +16,7 @@ type Client struct {
 	url *url.URL
 	httpClient *http.Client
 	Config *Config
+	cache cache.Cache
 }
 
 type LocationAreas struct {
