@@ -1,11 +1,13 @@
 {
   "cSpell.words": [
     "ahsanwtc",
+    "GOARCH",
     "mapb",
     "pokeapi",
     "Pokeball",
     "Pokedex",
     "pokedexcli",
-    "Pokemons"
+    "Pokemons",
+    "softprops"
   ]
 }
